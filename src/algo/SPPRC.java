@@ -130,7 +130,8 @@ public class SPPRC {
 		maxSol = 2 * nbRoute;
 		while ((U.size() > 0) && (nbsol < maxSol)) {
 			// second term if we want to limit to the first solutions encountered to speed up the SPPRC (perhaps not the BP)
-			// remark: we'll keep only nbroute, but we compute 2xnbroute!  It makes a huge difference=>we'll keep the most negative ones
+			// remark: we'll keep only nbRoute, but we compute 2 x nbRoute!
+			// It makes a huge difference => we'll keep the most negative ones
 			// this is something to analyze further!  how many solutions to keep and which ones?
 			// process one label => get the index AND remove it from U
 			currentidx = U.pollFirst();
@@ -142,16 +143,22 @@ public class SPPRC {
 			boolean pathdom;
 			label la1, la2;
 			ArrayList<Integer> cleaning = new ArrayList<Integer>();
-			for (i = checkDom[current.city]; i < city2labels[current.city].size(); i++) {  // check for dominance between the labels added since the last time we came here with this city and all the other ones
+			// check for dominance between the labels added since the last time
+			// we came here with this city and all the other ones
+			for (i = checkDom[current.city]; i < city2labels[current.city].size(); i++) {
 				for (j = 0; j < i; j++) {
 					l1 = city2labels[current.city].get(i);
 					l2 = city2labels[current.city].get(j);
 					la1 = labels.get(l1);
 					la2 = labels.get(l2);
-					if (!(la1.dominated || la2.dominated)) {  // could happen since we clean 'city2labels' thanks to 'cleaning' only after the double loop
+					// could happen since we clean 'city2labels' thanks
+					// to 'cleaning' only after the double loop
+					if (!(la1.dominated || la2.dominated)) {
 						pathdom = true;
-						for (int k = 1; pathdom && (k < userParam.nbclients + 2); k++)
+						for (int k = 1; pathdom && (k < userParam.nbclients + 2); k++) {
+							//la1没有访问节点k 或者 la2访问了节点k
 							pathdom = (!la1.vertexVisited[k] || la2.vertexVisited[k]);
+						}
 						if (pathdom && (la1.cost <= la2.cost) && (la1.tTime <= la2.tTime) && (la1.demand <= la2.demand)) {
 							labels.get(l2).dominated = true;
 							U.remove((Integer) l2);
@@ -160,9 +167,10 @@ public class SPPRC {
 							//System.out.print(" ###Remove"+l2);
 						}
 						pathdom = true;
-						for (int k = 1; pathdom && (k < userParam.nbclients + 2); k++)
+						for (int k = 1; pathdom && (k < userParam.nbclients + 2); k++) {
+							//la2没有访问节点k或者la1访问了节点k
 							pathdom = (!la2.vertexVisited[k] || la1.vertexVisited[k]);
-
+						}
 						if (pathdom && (la2.cost <= la1.cost) && (la2.tTime <= la1.tTime) && (la2.demand <= la1.demand)) {
 							labels.get(l1).dominated = true;
 							U.remove(l1);
@@ -193,9 +201,11 @@ public class SPPRC {
 								nbsol++;
 						}
 					}
-				} else {  // if not the depot, we can consider extensions of the path
+				} else {
+					// if not the depot, we can consider extensions of the path
 					for (i = 0; i < userParam.nbclients + 2; i++) {
-						if ((!current.vertexVisited[i]) && (userParam.dist[current.city][i] < userParam.verybig - 1e-6)) {  // don't go back to a vertex already visited or along a forbidden edge
+						// don't go back to a vertex already visited or along a forbidden edge
+						if ((!current.vertexVisited[i]) && (userParam.dist[current.city][i] < userParam.verybig - 1e-6)) {
 							// ttime
 							tt = (float) (current.tTime + userParam.ttime[current.city][i] + userParam.s[current.city]);
 							if (tt < userParam.a[i])
@@ -207,26 +217,27 @@ public class SPPRC {
 							// is feasible?
 							if ((tt <= userParam.b[i]) && (d <= userParam.capacity)) {
 								idx = labels.size();
-								boolean[] newcust = new boolean[userParam.nbclients + 2];
-								System.arraycopy(current.vertexVisited, 0, newcust, 0, userParam.nbclients + 2);
-								newcust[i] = true;
+								boolean[] newCust = new boolean[userParam.nbclients + 2];
+								System.arraycopy(current.vertexVisited, 0, newCust, 0, userParam.nbclients + 2);
+								newCust[i] = true;
 								//speedup: third technique - Feillet 2004 as mentioned in Laporte's paper
-								for (j = 1; j <= userParam.nbclients; j++)
-									if (!newcust[j]) {
+								for (j = 1; j <= userParam.nbclients; j++) {
+									if (!newCust[j]) {
 										tt2 = (float) (tt + userParam.ttime[i][j] + userParam.s[i]);
 										d2 = d + userParam.d[j];
-										if ((tt2 > userParam.b[j]) || (d2 > userParam.capacity))
-											newcust[j] = true;  // useless to visit this client
+										if ((tt2 > userParam.b[j]) || (d2 > userParam.capacity)) {
+											newCust[j] = true;  // useless to visit this client
+										}
 									}
-
-								labels.add(new label(i, currentidx, current.cost + userParam.cost[current.city][i], tt, d, false, newcust));    // first label: start from depot (client 0)
+								}
+								labels.add(new label(i, currentidx, current.cost + userParam.cost[current.city][i], tt, d, false, newCust));    // first label: start from depot (client 0)
 								if (!U.add((Integer) idx)) {
 									// only happens if there exists already a label at this vertex with the same cost, time and demand and visiting the same cities before
 									// It can happen with some paths where the order of the cities is permuted
 									labels.get(idx).dominated = true; // => we can forget this label and keep only the other one
-								} else
+								} else {
 									city2labels[i].add(idx);
-
+								}
 							}
 						}
 					}
@@ -247,16 +258,16 @@ public class SPPRC {
 					//        	if(s.cost > 0) {
 					//        		System.out.println("warning >>>>>>>>>>>>>>>>>>>>");
 					//        	}
-					route newroute = new route();
-					newroute.setcost(s.cost);
-					newroute.addcity(s.city);
+					route newRoute = new route();
+					newRoute.setcost(s.cost);
+					newRoute.addcity(s.city);
 					int path = s.indexPrevLabel;
 					while (path >= 0) {
-						newroute.addcity(labels.get(path).city);
+						newRoute.addcity(labels.get(path).city);
 						path = labels.get(path).indexPrevLabel;
 					}
-					newroute.switchpath();
-					routes.add(newroute);
+					newRoute.switchpath();
+					routes.add(newRoute);
 					i++;
 				}
 			}
